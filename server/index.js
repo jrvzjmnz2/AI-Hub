@@ -11,6 +11,21 @@ import { getToolBaseUrl, getAllToolBaseUrls } from './toolRegistry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
+
+// Render (and most PaaS hosts) terminate HTTPS at their own edge, then
+// forward the request to this container over plain HTTP, adding an
+// X-Forwarded-Proto header to say what the original scheme really was.
+// Express ignores that header unless told to trust it - without this,
+// req.protocol always reports "http" here, even for a real https visitor.
+// That breaks the self-referential URL /api/auth/logout-chain builds
+// (${req.protocol}://${req.get('host')}), which gets passed to the
+// inventory app's /logout?returnTo=... - its safety check there requires
+// an exact HUB_URL prefix match, so a wrong "http://" scheme fails it
+// silently and the chain never reaches finish-logout, leaving the Hub's
+// own session cookie uncleared. "1" trusts exactly one hop of proxy
+// (Render's own edge), which is what's actually in front of this app.
+app.set('trust proxy', 1)
+
 const PORT = process.env.PORT || 8787
 const DIST_DIR = path.join(__dirname, '..', 'dist')
 

@@ -42,9 +42,11 @@ Inventory app uses (one account works in both places). From then on:
   backend for a one-time hand-off token and the browser lands straight on that app's
   main page.
 - Opening that tool's own URL directly, without going through the Hub, sends the browser
-  back here to log in first.
+  back here to log in first - and after logging in (or right away, if you already had a
+  Hub session), sends you straight back to that same tool rather than leaving you on the
+  Hub's tool grid.
 - If that tool's session cookie is already valid (signed in earlier today), opening it
-  directly goes straight to its main page - no extra hop through the Hub.
+  directly goes straight to its main page - no detour through the Hub at all.
 
 Adding a second SSO-enabled tool later means: give that app the same `/sso` hand-off route
 and session-cookie pattern the Equipment Inventory app now has (see its own README), add
@@ -123,7 +125,12 @@ Once both apps are running locally (Hub on 5173/8787, Inventory on 3000, matchin
 4. In that new tab, reload the page - you should stay on the dashboard (the session cookie
    is already valid), not bounce anywhere.
 5. Open `http://localhost:3000` directly in a fresh incognito window (no cookie yet) - it
-   should redirect you to the Hub's login screen, not show its own old login form.
+   should redirect you to the Hub's login screen, not show its own old login form. Log in
+   there and you should land back on the Inventory dashboard, not the Hub's tool grid.
+5b. Repeat step 5, but first log in at the Hub in that same incognito window (visit
+   `http://localhost:5173` and sign in, then open `http://localhost:3000` directly) - this
+   time it should bounce through the Hub and back to Inventory with no login form shown at
+   all, just a brief "Taking you back to..." message.
 6. Back in the Inventory tab, click Log Out - it should send you to `/`, which (with no
    session left) redirects to the Hub's login screen.
 

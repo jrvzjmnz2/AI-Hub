@@ -25,6 +25,51 @@ export default function App() {
   const { favoriteIds, toggleFavorite, isFavorite } = useFavorites()
   const { recentIds, recordUse, clearRecents } = useRecents(6)
 
+  // Set when a tool's own /sso redirect sent someone here without a
+  // session, e.g. https://ai-hub.../login?tool=inventory - read once from
+  // the URL the page loaded with, not re-read on every render, since we
+  // clear the query string once this has been handled either way.
+  const [returnTool] = useState(() => new URLSearchParams(window.location.search).get('tool'))
+  // 'pending' until it's clear whether a hand-off is even needed; 'sending'
+  // while the redirect URL is being fetched (or once we've kicked off the
+  // navigation away); 'done' once there's nothing left to do here - show
+  // the grid normally, whether that's because there was no tool param or
+  // because the hand-off failed.
+  const [handoffState, setHandoffState] = useState(returnTool ? 'pending' : 'done')
+  const returnToolInfo = useMemo(
+    () => (returnTool ? TOOLS.find((t) => t.sso === returnTool) : null),
+    [returnTool]
+  )
+
+  useEffect(() => {
+    if (!returnTool || status !== 'authed' || handoffState !== 'pending') return
+    let cancelled = false
+    setHandoffState('sending')
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/sso/${returnTool}`, { credentials: 'same-origin' })
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          setHandoffState('done')
+          return
+        }
+        // Full-page navigation back to where the user actually came from -
+        // this is a return trip, not opening a new tool, so it replaces
+        // this tab rather than opening another one.
+        window.location.replace(data.redirectUrl)
+      } catch {
+        if (!cancelled) setHandoffState('done')
+      }
+    })()
+    // Either way, drop ?tool=... from the address bar so a later reload of
+    // the Hub itself doesn't try to bounce the user again.
+    window.history.replaceState({}, '', window.location.pathname)
+    return () => {
+      cancelled = true
+    }
+  }, [returnTool, status, handoffState])
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
@@ -61,10 +106,26 @@ export default function App() {
     return <div className="loginscreen loginscreen--checking" aria-live="polite" />
   }
 
+  // Covers both directions: logging in fresh with a ?tool= param, and
+  // already having a Hub session when that param shows up (nothing to log
+  // into - straight through).
+  if (returnTool && (handoffState === 'pending' || handoffState === 'sending') && status === 'authed') {
+    return (
+      <div className="loginscreen" aria-live="polite">
+        <div className="loginscreen__card">
+          <p className="loginscreen__subtitle">
+            Taking you back to {returnToolInfo ? returnToolInfo.name : 'that tool'}&hellip;
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (status === 'anon') {
     return (
       <LoginView
         theme={theme}
+        returnToolName={returnToolInfo ? returnToolInfo.name : null}
         onLoggedIn={(who) => {
           setEmployee(who)
           setStatus('authed')

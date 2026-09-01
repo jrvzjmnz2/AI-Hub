@@ -2,7 +2,7 @@ import { useState } from 'react'
 import logoColor from '../assets/logos/full-logo-color.png'
 import logoWhite from '../assets/logos/full-logo-white.png'
 
-export default function LoginView({ theme, onLoggedIn }) {
+export default function LoginView({ theme, onLoggedIn, returnToolName }) {
   const [employeeId, setEmployeeId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -43,7 +43,11 @@ export default function LoginView({ theme, onLoggedIn }) {
           height="319"
         />
         <h1 className="loginscreen__title">AI Hub</h1>
-        <p className="loginscreen__subtitle">Sign in with your employee account</p>
+        <p className="loginscreen__subtitle">
+          {returnToolName
+            ? `Sign in to continue to ${returnToolName}`
+            : 'Sign in with your employee account'}
+        </p>
 
         <form onSubmit={handleSubmit} className="loginscreen__form">
           <label htmlFor="employeeId">Employee ID</label>

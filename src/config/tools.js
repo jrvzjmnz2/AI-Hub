@@ -220,8 +220,7 @@ export const TOOLS = [
     team: 'entractiv',
     description: 'Tool for creating marshal lineups.',
     owner: 'Entractiv Team',
-    status: 'live',
-    placeholder: true,
+    status: 'live'
   },
   {
     id: 'entractiv-asset-prep',

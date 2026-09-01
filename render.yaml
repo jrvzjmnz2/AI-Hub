@@ -16,6 +16,11 @@ services:
       #   SESSION_SECRET        - random value, unique to this app
       #   SSO_SHARED_SECRET     - must match the inventory app's SSO_SHARED_SECRET
       #   INVENTORY_URL         - the inventory app's own deployed Render URL
+      #
+      # These four are OPTIONAL - the service deploys and runs without them.
+      # Until all four are set, Microsoft sign-in reports itself unavailable
+      # and its button is hidden, so set ALLOW_PASSWORD_LOGIN=true (below) to
+      # have any way to sign in at all:
       #   AZURE_TENANT_ID       - Microsoft Entra tenant id (see README)
       #   AZURE_CLIENT_ID       - Microsoft Entra app registration's client id
       #   AZURE_CLIENT_SECRET   - that app registration's client secret

@@ -18,7 +18,11 @@ export default function LoginView({ theme, returnToolName, ssoError, onLoggedIn 
   const tool = new URLSearchParams(window.location.search).get('tool') || ''
   const signInHref = tool ? `/auth/microsoft?tool=${encodeURIComponent(tool)}` : '/auth/microsoft'
 
-  const [passwordLogin, setPasswordLogin] = useState(false)
+  // null until the server has said which methods exist - rendering nothing
+  // for that moment beats flashing a Microsoft button that this server can't
+  // actually complete (it has no Azure app registration configured), or
+  // flashing a password form that's switched off.
+  const [methods, setMethods] = useState(null)
   const [employeeId, setEmployeeId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -29,11 +33,14 @@ export default function LoginView({ theme, returnToolName, ssoError, onLoggedIn 
     ;(async () => {
       try {
         const res = await fetch('/api/auth/methods', { credentials: 'same-origin' })
-        if (!res.ok) return
+        if (!res.ok) throw new Error('methods unavailable')
         const data = await res.json()
-        if (!cancelled) setPasswordLogin(!!data.password)
+        if (!cancelled) setMethods({ microsoft: !!data.microsoft, password: !!data.password })
       } catch {
-        // Leave the manual form hidden - Microsoft sign-in still works.
+        // Couldn't ask. Microsoft sign-in is the normal path, so offer it
+        // rather than a card with nothing on it - if it really isn't
+        // configured, that route redirects back here with an explanation.
+        if (!cancelled) setMethods({ microsoft: true, password: false })
       }
     })()
     return () => {
@@ -82,18 +89,30 @@ export default function LoginView({ theme, returnToolName, ssoError, onLoggedIn 
             : 'Sign in with your ITEMHOUND account'}
         </p>
 
-        <a className="msftbtn" href={signInHref}>
-          <MicrosoftIcon />
-          Sign in with Microsoft
-        </a>
+        {methods?.microsoft && (
+          <a className="msftbtn" href={signInHref}>
+            <MicrosoftIcon />
+            Sign in with Microsoft
+          </a>
+        )}
 
         {ssoError && <p className="loginscreen__error">{ssoError}</p>}
 
-        {passwordLogin && (
+        {methods && !methods.microsoft && !methods.password && (
+          <p className="loginscreen__error">
+            No sign-in method is enabled on this server yet. An administrator needs to either
+            configure Microsoft sign-in or switch on manual sign-in.
+          </p>
+        )}
+
+        {methods?.password && (
           <>
-            <div className="loginscreen__or" role="separator">
-              <span>or</span>
-            </div>
+            {/* Only a divider when there's actually something above it. */}
+            {methods.microsoft && (
+              <div className="loginscreen__or" role="separator">
+                <span>or</span>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="loginscreen__form">
               <label htmlFor="employeeId">Employee ID</label>
@@ -124,11 +143,15 @@ export default function LoginView({ theme, returnToolName, ssoError, onLoggedIn 
           </>
         )}
 
-        <p className="loginscreen__hint">
-          {passwordLogin
-            ? 'Microsoft sign-in uses your @itemhound.com account. Manual sign-in is for older accounts that still have a password.'
-            : 'Use your @itemhound.com Microsoft account.'}
-        </p>
+        {methods && (methods.microsoft || methods.password) && (
+          <p className="loginscreen__hint">
+            {methods.microsoft && methods.password
+              ? 'Microsoft sign-in uses your @itemhound.com account. Manual sign-in is for older accounts that still have a password.'
+              : methods.microsoft
+                ? 'Use your @itemhound.com Microsoft account.'
+                : 'Sign in with your employee ID and password.'}
+          </p>
+        )}
       </div>
     </div>
   )

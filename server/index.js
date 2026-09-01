@@ -8,7 +8,7 @@ import { connectToDatabase, getDb, DB_NAME } from './db.js'
 import { setSessionCookie, clearSessionCookie, readSession, requireSession } from './auth.js'
 import { mintSsoToken } from './ssoToken.js'
 import { getToolBaseUrl, getAllToolBaseUrls } from './toolRegistry.js'
-import { msalClient, MSAL_SCOPES } from './msalClient.js'
+import { getMsalClient, isMicrosoftConfigured, MSAL_SCOPES } from './msalClient.js'
 import { signOAuthState, verifyOAuthState } from './oauthState.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -88,10 +88,16 @@ app.use(cookieParser())
 // round trip inside the signed `state` param, since the browser leaves this
 // domain entirely and there's no session yet to stash it in server-side.
 app.get('/auth/microsoft', async (req, res) => {
+  const msal = getMsalClient()
+  if (!msal) {
+    return res.redirect(
+      '/?ssoError=' + encodeURIComponent("Microsoft sign-in isn't set up on this server yet.")
+    )
+  }
   const tool = typeof req.query.tool === 'string' ? req.query.tool : ''
   const state = signOAuthState({ tool })
   try {
-    const url = await msalClient.getAuthCodeUrl({
+    const url = await msal.getAuthCodeUrl({
       scopes: MSAL_SCOPES,
       redirectUri: AZURE_REDIRECT_URI,
       state,
@@ -110,6 +116,13 @@ app.get('/auth/microsoft', async (req, res) => {
 // session - Microsoft is only ever consulted here, never trusted directly
 // by any other route.
 app.get('/auth/microsoft/callback', async (req, res) => {
+  const msal = getMsalClient()
+  if (!msal) {
+    return res.redirect(
+      '/?ssoError=' + encodeURIComponent("Microsoft sign-in isn't set up on this server yet.")
+    )
+  }
+
   const { code, state, error, error_description: errorDescription } = req.query
 
   if (error) {
@@ -122,7 +135,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
   }
 
   try {
-    const result = await msalClient.acquireTokenByCode({
+    const result = await msal.acquireTokenByCode({
       code: String(code),
       scopes: MSAL_SCOPES,
       redirectUri: AZURE_REDIRECT_URI,
@@ -172,7 +185,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
 // it reveals only whether a second sign-in form is switched on, which is
 // visible from the form's presence anyway.
 app.get('/api/auth/methods', (req, res) => {
-  res.json({ microsoft: true, password: ALLOW_PASSWORD_LOGIN })
+  res.json({ microsoft: isMicrosoftConfigured(), password: ALLOW_PASSWORD_LOGIN })
 })
 
 // Manual sign-in against the bcrypt hash stored on an employees document.
@@ -406,9 +419,29 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(DIST_DIR, 'index.html'))
 })
 
+function reportSignInMethods() {
+  const microsoft = isMicrosoftConfigured()
+  console.log(`Sign-in methods: Microsoft=${microsoft ? 'on' : 'OFF'}, manual password=${ALLOW_PASSWORD_LOGIN ? 'on' : 'OFF'}`)
+  if (!microsoft) {
+    console.log(
+      '  Microsoft sign-in is off because AZURE_TENANT_ID / AZURE_CLIENT_ID / ' +
+        'AZURE_CLIENT_SECRET / AZURE_REDIRECT_URI are not all set. The app runs ' +
+        'fine without them - see "Running without Microsoft sign-in yet" in the README.'
+    )
+  }
+  if (!microsoft && !ALLOW_PASSWORD_LOGIN) {
+    console.warn(
+      '  WARNING: no sign-in method is enabled, so nobody can log in. Set ' +
+        'ALLOW_PASSWORD_LOGIN=true to allow employee-ID + password sign-in, or ' +
+        'configure the Azure variables above.'
+    )
+  }
+}
+
 connectToDatabase()
   .then(() => {
     console.log(`Connected to MongoDB database "${DB_NAME}"`)
+    reportSignInMethods()
     app.listen(PORT, () => {
       console.log(`AI Hub server running at http://localhost:${PORT}`)
     })

@@ -42,6 +42,34 @@ independently (`ALLOWED_EMAIL_DOMAIN` in `.env`).
 There's also an optional **manual sign-in** (employee ID + password) that can be switched
 on and off - see **Manual sign-in** below.
 
+### Running without Microsoft sign-in yet
+
+**You do not need an Azure account to deploy or run this.** All four Azure variables
+(`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_REDIRECT_URI`) are
+optional. When any of them is missing:
+
+- The server starts normally. It logs `Sign-in methods: Microsoft=OFF, manual password=...`
+  at startup, so a deploy log tells you exactly what's active.
+- `GET /api/auth/methods` reports `{"microsoft":false,...}` and the login screen hides the
+  Microsoft button entirely, rather than offering one that can't complete.
+- `/auth/microsoft` and its callback redirect back to the login screen with "Microsoft
+  sign-in isn't set up on this server yet" instead of failing.
+
+The MSAL client is built lazily for exactly this reason. Its constructor throws
+`invalid_client_credential` when the client id/secret are absent, so building it at module
+load made the *whole server* fail to boot without an app registration - the process died on
+import, before it ever listened on a port.
+
+So while you have no Azure account, **set `ALLOW_PASSWORD_LOGIN=true`** - otherwise no
+sign-in method is enabled at all and nobody can get in (the server warns loudly about this
+at startup, and the login screen says so too). That path only works for accounts that
+already carry a bcrypt `password` hash, so confirm you have at least one before relying on
+it; see **Manual sign-in** just below, including the note about the old seeded demo
+accounts.
+
+Once you do create the Azure app registration, fill in the four variables and restart -
+nothing else needs changing, and the Microsoft button reappears on its own.
+
 ### Manual sign-in (optional, off by default)
 
 `ALLOW_PASSWORD_LOGIN` controls a second employee-ID + password form underneath the
@@ -232,10 +260,10 @@ browser only ever talks to one origin and the session cookie just works.
 | `SSO_SHARED_SECRET`        | Must be **identical** to the Equipment Inventory app's `SSO_SHARED_SECRET`.|
 | `INVENTORY_URL`            | Where that app is reachable - `http://localhost:3000` in dev.              |
 | `PORT`                     | Port the API server listens on in dev (`8787`).                            |
-| `AZURE_TENANT_ID`          | Microsoft Entra tenant id - see **Setting up Microsoft sign-in** above.    |
-| `AZURE_CLIENT_ID`          | That app registration's Application (client) ID.                          |
-| `AZURE_CLIENT_SECRET`      | That app registration's client secret value.                              |
-| `AZURE_REDIRECT_URI`       | Must exactly match a Redirect URI registered on the app.                  |
+| `AZURE_TENANT_ID`          | *Optional.* Microsoft Entra tenant id - see **Setting up Microsoft sign-in**.|
+| `AZURE_CLIENT_ID`          | *Optional.* That app registration's Application (client) ID.              |
+| `AZURE_CLIENT_SECRET`      | *Optional.* That app registration's client secret value.                  |
+| `AZURE_REDIRECT_URI`       | *Optional.* Must exactly match a Redirect URI registered on the app.      |
 | `ALLOWED_EMAIL_DOMAIN`     | `itemhound.com` - accounts outside this domain are rejected.              |
 | `RESERVED_EMPLOYEE_IDS`    | Comma-separated employee numbers nobody may self-assign (default `Admin`).|
 | `ALLOW_PASSWORD_LOGIN`     | `true` shows the manual employee-ID + password form; anything else hides it.|

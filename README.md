@@ -47,6 +47,19 @@ Inventory app uses (one account works in both places). From then on:
   Hub's tool grid.
 - If that tool's session cookie is already valid (signed in earlier today), opening it
   directly goes straight to its main page - no detour through the Hub at all.
+- Logging out at the Hub logs out of every SSO-enabled tool too, not just the Hub itself.
+  This happens as a real chain of page redirects through each tool's own domain (Hub ->
+  Inventory's own `/logout` -> back to the Hub), not a background request - a background
+  fetch can't reliably clear another app's cookie across domains once third-party cookie
+  blocking is in play, regardless of CORS. See `/api/auth/logout-chain` in
+  `server/index.js`. Adding a second SSO-enabled tool later just means adding its base URL
+  to `server/toolRegistry.js` and giving it the same `GET /logout?returnTo=...` route
+  Inventory has (see its own README) - it's automatically included in the chain from
+  there.
+- A tool's own "Return to Hub"-style button (see Inventory's) is a one-way navigation
+  back, nothing more - it deliberately does NOT log that tool out, so coming back to it
+  later in the same session doesn't ask for a password again. Only the Hub's own Log Out
+  signs out of everything.
 
 Adding a second SSO-enabled tool later means: give that app the same `/sso` hand-off route
 and session-cookie pattern the Equipment Inventory app now has (see its own README), add
@@ -127,12 +140,17 @@ Once both apps are running locally (Hub on 5173/8787, Inventory on 3000, matchin
 5. Open `http://localhost:3000` directly in a fresh incognito window (no cookie yet) - it
    should redirect you to the Hub's login screen, not show its own old login form. Log in
    there and you should land back on the Inventory dashboard, not the Hub's tool grid.
-5b. Repeat step 5, but first log in at the Hub in that same incognito window (visit
+6. Repeat step 5, but first log in at the Hub in that same incognito window (visit
    `http://localhost:5173` and sign in, then open `http://localhost:3000` directly) - this
    time it should bounce through the Hub and back to Inventory with no login form shown at
    all, just a brief "Taking you back to..." message.
-6. Back in the Inventory tab, click Log Out - it should send you to `/`, which (with no
-   session left) redirects to the Hub's login screen.
+7. In the Inventory tab, click **Return to Hub** - this only navigates back, it should
+   NOT sign you out (opening `http://localhost:3000` directly again in the same window
+   should go straight back to the dashboard, no login screen).
+8. Back at the Hub, click **Log Out** - you'll briefly see the address bar pass through
+   `localhost:3000/logout` before landing back on the Hub's login screen. Afterward, open
+   `http://localhost:3000` directly (same window) - it should now send you to the Hub's
+   login screen too, confirming Inventory's own session was cleared, not just the Hub's.
 
 ## Notes
 

@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { connectToDatabase, getDb, DB_NAME } from './db.js'
 import { setSessionCookie, clearSessionCookie, readSession, requireSession } from './auth.js'
 import { mintSsoToken } from './ssoToken.js'
-import { getToolBaseUrl } from './toolRegistry.js'
+import { getToolBaseUrl, getAllToolBaseUrls } from './toolRegistry.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -51,6 +51,39 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
   clearSessionCookie(res)
   res.json({ ok: true })
+})
+
+// Logging out here should log out of every SSO-enabled tool too, not just
+// the Hub - otherwise someone's Inventory session (a separate cookie, on a
+// separate domain) would quietly outlive their Hub session for up to its
+// own 12h. A background fetch to each tool's own logout endpoint can't do
+// this reliably: it's a cross-site request, and browsers increasingly
+// refuse to send or accept cookies on those (third-party cookie blocking,
+// this cookie's own SameSite=Lax) regardless of any CORS configuration.
+// A real top-level navigation to that tool's own domain has none of those
+// restrictions, so instead this builds one redirect chain through every
+// registered tool's own GET /logout, each hop clearing that tool's cookie
+// server-side and then redirecting on to the next - finishing back here at
+// /api/auth/finish-logout, which clears the Hub's own session the same way.
+//
+// Chained as u1/logout?returnTo=u2/logout?returnTo=...finishUrl, built from
+// the end backwards so each hop's returnTo already points at the next one.
+app.get('/api/auth/logout-chain', requireSession, (req, res) => {
+  const selfBase = `${req.protocol}://${req.get('host')}`
+  let next = `${selfBase}/api/auth/finish-logout`
+  const targets = getAllToolBaseUrls()
+  for (let i = targets.length - 1; i >= 0; i--) {
+    next = `${targets[i]}/logout?returnTo=${encodeURIComponent(next)}`
+  }
+  res.json({ nextUrl: next })
+})
+
+// Reached only after every tool ahead of it in the chain has already
+// cleared its own cookie (or there were none configured). No returnTo here
+// - this is always the last stop, back at the Hub's own login screen.
+app.get('/api/auth/finish-logout', (req, res) => {
+  clearSessionCookie(res)
+  res.redirect('/')
 })
 
 app.get('/api/auth/me', (req, res) => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from './components/Header.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import ToolGrid from './components/ToolGrid.jsx'
@@ -41,8 +41,18 @@ export default function App() {
     [returnTool]
   )
 
+  // Fires exactly once, guarded by a ref rather than by handoffState itself
+  // - handoffState is only ever a dependency in the RENDER logic below, not
+  // here. Making the state this effect writes also a dependency of this
+  // same effect (an earlier bug) meant calling setHandoffState('sending')
+  // re-triggered the effect, which cancelled the fetch that was already in
+  // flight and then refused to start a new one (its own guard now saw
+  // handoffState !== 'pending') - permanently stuck on "sending" with
+  // nothing left to retry it.
+  const firedRef = useRef(false)
   useEffect(() => {
-    if (!returnTool || status !== 'authed' || handoffState !== 'pending') return
+    if (!returnTool || status !== 'authed' || firedRef.current) return
+    firedRef.current = true
     let cancelled = false
     setHandoffState('sending')
     ;(async () => {
@@ -68,7 +78,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [returnTool, status, handoffState])
+  }, [returnTool, status])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)

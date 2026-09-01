@@ -1,0 +1,46 @@
+// The Hub's own session - separate secret from any other app, and separate
+// from SSO_SHARED_SECRET (which is only for the brief hand-off token, see
+// ssoToken.js). A leak of one app's session secret can't be used to forge
+// sessions on another app.
+import jwt from 'jsonwebtoken'
+
+const SESSION_SECRET = process.env.SESSION_SECRET
+const SESSION_COOKIE = 'hub_session'
+
+if (!SESSION_SECRET) {
+  console.warn('SESSION_SECRET is not set - sessions cannot be signed. Add it to .env.')
+}
+
+export function setSessionCookie(res, employee) {
+  const token = jwt.sign({ employeeId: employee.employeeId, name: employee.name }, SESSION_SECRET, {
+    expiresIn: '12h',
+  })
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 12 * 60 * 60 * 1000,
+  })
+}
+
+export function clearSessionCookie(res) {
+  res.clearCookie(SESSION_COOKIE)
+}
+
+export function readSession(req) {
+  const token = req.cookies && req.cookies[SESSION_COOKIE]
+  if (!token) return null
+  try {
+    const payload = jwt.verify(token, SESSION_SECRET)
+    return { employeeId: payload.employeeId, name: payload.name }
+  } catch {
+    return null
+  }
+}
+
+export function requireSession(req, res, next) {
+  const employee = readSession(req)
+  if (!employee) return res.status(401).json({ message: 'Not logged in.' })
+  req.employee = employee
+  next()
+}

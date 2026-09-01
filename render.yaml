@@ -1,0 +1,18 @@
+# Render blueprint - deploys the Hub as a Node web service (it now runs its
+# own small Express API alongside the built React app, so it can no longer
+# be a plain static site).
+services:
+  - type: web
+    name: itemhound-ai-hub
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set these in the Render dashboard (not committed here):
+      #   MONGO_URI            - same Atlas connection string the inventory app uses
+      #   MONGO_DB_NAME         - inventory
+      #   SESSION_SECRET        - random value, unique to this app
+      #   SSO_SHARED_SECRET     - must match the inventory app's SSO_SHARED_SECRET
+      #   INVENTORY_URL         - the inventory app's own deployed Render URL

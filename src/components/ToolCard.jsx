@@ -3,7 +3,7 @@ import { StarIcon, ExternalIcon } from './Icons.jsx'
 
 const STATUS_LABEL = { live: 'Live', beta: 'Beta', planned: 'Planned' }
 
-export default function ToolCard({ tool, team, isFavorite, onToggleFavorite, onOpen }) {
+export default function ToolCard({ tool, team, isFavorite, onToggleFavorite, onOpen, index = 0 }) {
   const status = tool.status || 'live'
   const unset = !tool.sso && (!tool.url || tool.url.includes('example.com'))
   const [ssoError, setSsoError] = useState('')
@@ -29,7 +29,7 @@ export default function ToolCard({ tool, team, isFavorite, onToggleFavorite, onO
   }
 
   return (
-    <div className={`card${unset ? ' card--unset' : ''}`}>
+    <div className={`card enter${unset ? ' card--unset' : ''}`} style={{ '--i': index }}>
       <div className="card__top">
         <span className="card__team">{team ? team.name : tool.team}</span>
         <button

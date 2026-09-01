@@ -1,10 +1,12 @@
 import { SearchIcon, CloseIcon } from './Icons.jsx'
 
-export default function Toolbar({ query, onQuery, teams, counts, activeTeam, onTeam, total, showing }) {
+// Search lives in its own dock straddling the hero's bottom edge; the team
+// filters and the result count sit together above the grid.
+export function SearchDock({ query, onQuery }) {
   return (
-    <div className="toolbar">
+    <div className="searchdock">
       <div className="search">
-        <SearchIcon className="search__icon" />
+        <SearchIcon className="search__icon" width="20" height="20" />
         <input
           type="search"
           className="search__input"
@@ -14,12 +16,23 @@ export default function Toolbar({ query, onQuery, teams, counts, activeTeam, onT
           aria-label="Search tools"
         />
         {query && (
-          <button type="button" className="search__clear" onClick={() => onQuery('')} aria-label="Clear search">
+          <button
+            type="button"
+            className="search__clear"
+            onClick={() => onQuery('')}
+            aria-label="Clear search"
+          >
             <CloseIcon />
           </button>
         )}
       </div>
+    </div>
+  )
+}
 
+export default function Toolbar({ teams, counts, activeTeam, onTeam, total, showing }) {
+  return (
+    <div className="filters">
       <div className="chips" role="group" aria-label="Filter by team">
         <button
           type="button"
@@ -42,8 +55,8 @@ export default function Toolbar({ query, onQuery, teams, counts, activeTeam, onT
         ))}
       </div>
 
-      <p className="toolbar__count">
-        Showing {showing} of {total} {total === 1 ? 'tool' : 'tools'}
+      <p className="filters__count">
+        {showing} of {total} {total === 1 ? 'tool' : 'tools'}
       </p>
     </div>
   )

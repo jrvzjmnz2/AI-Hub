@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from './components/Header.jsx'
-import Toolbar from './components/Toolbar.jsx'
+import Hero from './components/Hero.jsx'
+import Toolbar, { SearchDock } from './components/Toolbar.jsx'
+import SectionHead from './components/SectionHead.jsx'
 import ToolGrid from './components/ToolGrid.jsx'
 import LoginView from './components/LoginView.jsx'
 import EmployeeIdView from './components/EmployeeIdView.jsx'
@@ -171,6 +173,11 @@ export default function App() {
     )
   }
 
+  // Sections are numbered in the order they actually render, so the index
+  // stays continuous whether or not Favorites/Recents are present.
+  let sectionNo = 0
+  const nextNo = () => ++sectionNo
+
   return (
     <div className="app">
       <Header
@@ -180,10 +187,17 @@ export default function App() {
         onLogout={logout}
       />
 
+      <Hero
+        employee={employee}
+        toolCount={TOOLS.length}
+        teamCount={TEAMS.filter((team) => counts[team.id]).length}
+        favoriteCount={favorites.length}
+      />
+
+      <SearchDock query={query} onQuery={setQuery} />
+
       <main className="main">
         <Toolbar
-          query={query}
-          onQuery={setQuery}
           teams={TEAMS}
           counts={counts}
           activeTeam={activeTeam}
@@ -194,19 +208,23 @@ export default function App() {
 
         {browsing && favorites.length > 0 && (
           <section className="section">
-            <div className="section__head">
-              <h2 className="section__title"><StarIcon filled /> Favorites</h2>
-            </div>
+            <SectionHead index={nextNo()} icon={<StarIcon filled />} title="Favorites" />
             <ToolGrid tools={favorites} {...gridProps} />
           </section>
         )}
 
         {browsing && recents.length > 0 && (
           <section className="section">
-            <div className="section__head">
-              <h2 className="section__title"><ClockIcon /> Recently used</h2>
-              <button type="button" className="linkbtn" onClick={clearRecents}>Clear</button>
-            </div>
+            <SectionHead
+              index={nextNo()}
+              icon={<ClockIcon />}
+              title="Recently used"
+              action={
+                <button type="button" className="sechead__action" onClick={clearRecents}>
+                  Clear
+                </button>
+              }
+            />
             <ToolGrid tools={recents} {...gridProps} />
           </section>
         )}
@@ -222,20 +240,17 @@ export default function App() {
         ) : browsing ? (
           TEAMS.filter((team) => counts[team.id]).map((team) => (
             <section className="section" key={team.id}>
-              <div className="section__head">
-                <h2 className="section__title">{team.name}</h2>
-                <span className="section__blurb">{team.blurb}</span>
-              </div>
+              <SectionHead index={nextNo()} title={team.name} blurb={team.blurb} />
               <ToolGrid tools={filtered.filter((t) => t.team === team.id)} {...gridProps} />
             </section>
           ))
         ) : (
           <section className="section">
-            <div className="section__head">
-              <h2 className="section__title">
-                {activeTeam === 'all' ? 'Results' : teamsById[activeTeam]?.name}
-              </h2>
-            </div>
+            <SectionHead
+              index={nextNo()}
+              title={activeTeam === 'all' ? 'Results' : teamsById[activeTeam]?.name}
+              blurb={query.trim() ? `Matching "${query.trim()}"` : null}
+            />
             <ToolGrid tools={filtered} {...gridProps} />
           </section>
         )}

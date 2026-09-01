@@ -30,3 +30,16 @@ export const MoonIcon = (p) => (
 export const CloseIcon = (p) => (
   <svg {...base} {...p} aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
 )
+
+// Microsoft's own four-square mark, in its official four colors - used only
+// on the "Sign in with Microsoft" button, per Microsoft's identity branding
+// guidelines (not part of the ITEMHOUND icon set, so it keeps its own fixed
+// colors rather than following currentColor).
+export const MicrosoftIcon = (p) => (
+  <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true" {...p}>
+    <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+  </svg>
+)

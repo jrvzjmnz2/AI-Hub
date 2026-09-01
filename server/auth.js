@@ -12,9 +12,20 @@ if (!SESSION_SECRET) {
 }
 
 export function setSessionCookie(res, employee) {
-  const token = jwt.sign({ employeeId: employee.employeeId, name: employee.name }, SESSION_SECRET, {
-    expiresIn: '12h',
-  })
+  const token = jwt.sign(
+    {
+      employeeId: employee.employeeId ?? null,
+      name: employee.name,
+      email: employee.email,
+      // 'microsoft' or 'password' - recorded so the server can tell a
+      // manual sign-in apart later and stop honouring it the moment
+      // ALLOW_PASSWORD_LOGIN goes false, rather than letting a cookie
+      // issued while it was on keep working for its full 12h.
+      via: employee.via || 'microsoft',
+    },
+    SESSION_SECRET,
+    { expiresIn: '12h' }
+  )
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -41,7 +52,12 @@ export function readSession(req) {
   if (!token) return null
   try {
     const payload = jwt.verify(token, SESSION_SECRET)
-    return { employeeId: payload.employeeId, name: payload.name }
+    return {
+      employeeId: payload.employeeId ?? null,
+      name: payload.name,
+      email: payload.email,
+      via: payload.via || 'microsoft',
+    }
   } catch {
     return null
   }

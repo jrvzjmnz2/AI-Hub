@@ -196,6 +196,9 @@ a { color: inherit; }
   color: var(--ink-soft); background: none; border: 0; cursor: pointer; padding: 0;
 }
 .linkbtn:hover { color: var(--accent-text); text-decoration: underline; }
+/* The same link-button inside centred card copy, where margin-left:auto would
+   push it off to one side. */
+.linkbtn--inline { margin-left: 0; text-decoration: underline; }
 
 /* ------------------------------------------------------------------- cards */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; }
@@ -317,8 +320,29 @@ a { color: inherit; }
 .loginscreen__title { font-size: 20px; font-weight: 700; color: var(--accent-text); }
 .loginscreen__subtitle { margin: 6px 0 24px; font-size: 13.5px; color: var(--ink-soft); }
 
+/* Divider between Microsoft sign-in and the optional manual form. */
+.loginscreen__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+}
+.loginscreen__or::before,
+.loginscreen__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Used by the employee-number card (EmployeeIdView) and the manual
+   sign-in form. */
 .loginscreen__form { display: flex; flex-direction: column; gap: 6px; text-align: left; }
-.loginscreen__form label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-top: 10px; }
+.loginscreen__form label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-top: 4px; }
 .loginscreen__form input {
   padding: 11px 13px;
   font: inherit; font-size: 14px;
@@ -339,5 +363,27 @@ a { color: inherit; }
   cursor: pointer;
 }
 .loginscreen__form button:disabled { opacity: .6; cursor: default; }
-.loginscreen__error { margin: 10px 0 0; font-size: 13px; color: var(--maroon); text-align: center; }
+
+/* Microsoft's own identity-branding guidelines call for a neutral white
+   button with their four-square mark and dark text, kept as-is regardless
+   of theme - it's a third-party mark, not part of the ITEMHOUND palette. */
+.msftbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 12px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  color: #1B1B1B;
+  background: #FFFFFF;
+  border: 1px solid #8A8886;
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.msftbtn:hover { background: #F3F2F1; }
+
+.loginscreen__error { margin: 14px 0 0; font-size: 13px; color: var(--maroon); text-align: center; }
 .loginscreen__hint { margin: 20px 0 0; font-size: 12.5px; color: var(--ink-soft); }

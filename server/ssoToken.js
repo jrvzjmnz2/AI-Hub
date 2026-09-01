@@ -12,8 +12,9 @@ if (!SSO_SHARED_SECRET) {
 }
 
 export function mintSsoToken(employee, audience) {
-  return jwt.sign({ employeeId: employee.employeeId, name: employee.name }, SSO_SHARED_SECRET, {
-    expiresIn: '60s',
-    audience,
-  })
+  return jwt.sign(
+    { employeeId: employee.employeeId ?? null, name: employee.name, email: employee.email },
+    SSO_SHARED_SECRET,
+    { expiresIn: '60s', audience }
+  )
 }

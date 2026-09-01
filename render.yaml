@@ -16,3 +16,21 @@ services:
       #   SESSION_SECRET        - random value, unique to this app
       #   SSO_SHARED_SECRET     - must match the inventory app's SSO_SHARED_SECRET
       #   INVENTORY_URL         - the inventory app's own deployed Render URL
+      #   AZURE_TENANT_ID       - Microsoft Entra tenant id (see README)
+      #   AZURE_CLIENT_ID       - Microsoft Entra app registration's client id
+      #   AZURE_CLIENT_SECRET   - that app registration's client secret
+      #   AZURE_REDIRECT_URI    - https://<this service's URL>/auth/microsoft/callback
+      #   ALLOWED_EMAIL_DOMAIN  - itemhound.com
+      #   RESERVED_EMPLOYEE_IDS - employee numbers nobody may self-assign (default: Admin)
+      #
+      # Manual employee-ID + password sign-in. Set to the literal 'true' to
+      # switch it on, anything else (or absent) leaves it off.
+      #
+      # sync: false means "this variable exists, but the Render dashboard
+      # owns its value" - deliberately NOT `value: "false"`, because a value
+      # committed here makes the blueprint the owner and Render resets the
+      # variable to it on every blueprint sync, silently undoing whatever
+      # you'd switched it to in the dashboard. Since this is a toggle meant
+      # to be flipped from the dashboard, it has to be sync: false.
+      - key: ALLOW_PASSWORD_LOGIN
+        sync: false

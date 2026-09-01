@@ -3,6 +3,7 @@ import Header from './components/Header.jsx'
 import Toolbar from './components/Toolbar.jsx'
 import ToolGrid from './components/ToolGrid.jsx'
 import LoginView from './components/LoginView.jsx'
+import EmployeeIdView from './components/EmployeeIdView.jsx'
 import { StarIcon, ClockIcon } from './components/Icons.jsx'
 import { SITE, TEAMS, TOOLS } from './config/tools.js'
 import { useLocalStorage, useFavorites, useRecents } from './hooks/useLocalStorage.js'
@@ -30,12 +31,23 @@ export default function App() {
   // the URL the page loaded with, not re-read on every render, since we
   // clear the query string once this has been handled either way.
   const [returnTool] = useState(() => new URLSearchParams(window.location.search).get('tool'))
+  // Set on the one redirect back from /auth/microsoft/callback when
+  // Microsoft sign-in itself failed (wrong domain, cancelled, etc.) - read
+  // once the same way returnTool is, then scrubbed from the address bar
+  // below so refreshing the login screen doesn't keep re-showing it.
+  const [ssoError] = useState(() => new URLSearchParams(window.location.search).get('ssoError'))
   // 'pending' until it's clear whether a hand-off is even needed; 'sending'
   // while the redirect URL is being fetched (or once we've kicked off the
   // navigation away); 'done' once there's nothing left to do here - show
   // the grid normally, whether that's because there was no tool param or
   // because the hand-off failed.
   const [handoffState, setHandoffState] = useState(returnTool ? 'pending' : 'done')
+
+  // Signed in, but their employees record has no employeeId yet - the
+  // employee-number card has to come first, ahead of both the tool grid and
+  // any pending hand-off to a tool (a tool would only receive a null
+  // employeeId and be unable to identify them).
+  const needsEmployeeId = status === 'authed' && !!employee && !employee.employeeId
   const returnToolInfo = useMemo(
     () => (returnTool ? TOOLS.find((t) => t.sso === returnTool) : null),
     [returnTool]
@@ -46,20 +58,21 @@ export default function App() {
   // here. Making the state this effect writes also a dependency of this
   // same effect (an earlier bug) meant calling setHandoffState('sending')
   // re-triggered the effect, which cancelled the fetch that was already in
-  // flight and then refused to start a new one (its own guard now saw
-  // handoffState !== 'pending') - permanently stuck on "sending" with
-  // nothing left to retry it.
+  // flight and then refused to start a new one - permanently stuck on
+  // "sending" with nothing left to retry it. The old cleanup that set a
+  // `cancelled` flag is gone for the same reason: needsEmployeeId now
+  // changes (true -> false) once the employee number is saved, and a
+  // cleanup firing on that change would have cancelled the very fetch this
+  // effect had just started, reintroducing exactly that freeze.
   const firedRef = useRef(false)
   useEffect(() => {
-    if (!returnTool || status !== 'authed' || firedRef.current) return
+    if (!returnTool || status !== 'authed' || needsEmployeeId || firedRef.current) return
     firedRef.current = true
-    let cancelled = false
     setHandoffState('sending')
     ;(async () => {
       try {
         const res = await fetch(`/api/sso/${returnTool}`, { credentials: 'same-origin' })
         const data = await res.json()
-        if (cancelled) return
         if (!res.ok) {
           setHandoffState('done')
           return
@@ -69,20 +82,22 @@ export default function App() {
         // this tab rather than opening another one.
         window.location.replace(data.redirectUrl)
       } catch {
-        if (!cancelled) setHandoffState('done')
+        setHandoffState('done')
       }
     })()
     // Either way, drop ?tool=... from the address bar so a later reload of
     // the Hub itself doesn't try to bounce the user again.
     window.history.replaceState({}, '', window.location.pathname)
-    return () => {
-      cancelled = true
-    }
-  }, [returnTool, status])
+  }, [returnTool, status, needsEmployeeId])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!ssoError) return
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [ssoError])
 
   const teamsById = useMemo(() => Object.fromEntries(TEAMS.map((t) => [t.id, t])), [])
 
@@ -116,6 +131,17 @@ export default function App() {
     return <div className="loginscreen loginscreen--checking" aria-live="polite" />
   }
 
+  if (needsEmployeeId) {
+    return (
+      <EmployeeIdView
+        theme={theme}
+        employee={employee}
+        onTagged={(who) => setEmployee(who)}
+        onLogout={logout}
+      />
+    )
+  }
+
   // Covers both directions: logging in fresh with a ?tool= param, and
   // already having a Hub session when that param shows up (nothing to log
   // into - straight through).
@@ -136,6 +162,7 @@ export default function App() {
       <LoginView
         theme={theme}
         returnToolName={returnToolInfo ? returnToolInfo.name : null}
+        ssoError={ssoError}
         onLoggedIn={(who) => {
           setEmployee(who)
           setStatus('authed')

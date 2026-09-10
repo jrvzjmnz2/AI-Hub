@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from './components/Header.jsx'
 import Hero from './components/Hero.jsx'
+import NotificationBar from './components/NotificationBar.jsx'
 import Toolbar, { SearchDock } from './components/Toolbar.jsx'
 import SectionHead from './components/SectionHead.jsx'
 import ToolGrid from './components/ToolGrid.jsx'
@@ -10,6 +11,7 @@ import { StarIcon, ClockIcon } from './components/Icons.jsx'
 import { SITE, TEAMS, TOOLS } from './config/tools.js'
 import { useLocalStorage, useFavorites, useRecents } from './hooks/useLocalStorage.js'
 import { useSession } from './hooks/useSession.js'
+import { useNotifications } from './hooks/useNotifications.js'
 
 /* Everything a tool can be matched on, lowercased once up front. */
 function searchIndex(tool, teamName) {
@@ -24,6 +26,10 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [activeTeam, setActiveTeam] = useState('all')
   const { status, employee, setEmployee, setStatus, logout } = useSession()
+
+  // Gated on a usable session: an account still waiting for its employee
+  // number has nothing borrowed, so there is nothing to ask the tools about.
+  const notify = useNotifications(status === 'authed' && !!employee?.employeeId)
 
   const { favoriteIds, toggleFavorite, isFavorite } = useFavorites()
   const { recentIds, recordUse, clearRecents } = useRecents(6)
@@ -185,6 +191,12 @@ export default function App() {
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         employee={employee}
         onLogout={logout}
+      />
+
+      <NotificationBar
+        notifications={notify.notifications}
+        sources={notify.sources}
+        onDismiss={notify.dismiss}
       />
 
       <Hero

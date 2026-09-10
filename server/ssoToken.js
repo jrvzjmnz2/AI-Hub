@@ -18,3 +18,17 @@ export function mintSsoToken(employee, audience) {
     { expiresIn: '60s', audience }
   )
 }
+
+// Same shared secret, deliberately a different audience: `<toolId>-api`
+// rather than `<toolId>`. A login hand-off token travels in a browser URL
+// (?token=... on the tool's /sso route) and is therefore far more exposed
+// than an API token that only ever moves server-to-server in an
+// Authorization header. Keeping the audiences apart means a leaked ?token=
+// can't be replayed against a tool's APIs, and vice versa.
+export function mintServiceToken(employee, toolId) {
+  return jwt.sign(
+    { employeeId: employee.employeeId ?? null, name: employee.name, email: employee.email },
+    SSO_SHARED_SECRET,
+    { expiresIn: '60s', audience: `${toolId}-api` }
+  )
+}

@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server/index.js",
-    "dev:server": "node --watch server/index.js"
+    "dev:server": "node --watch server/index.js",
+    "set-password": "node scripts/set-password.js"
   },
   "dependencies": {
     "@azure/msal-node": "^6.0.0",

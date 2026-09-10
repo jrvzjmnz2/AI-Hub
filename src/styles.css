@@ -260,6 +260,165 @@ a { color: inherit; }
 .iconbtn svg { transition: transform 420ms var(--ease-out); }
 .iconbtn:hover svg { transform: rotate(18deg); }
 
+/* ------------------------------------------------------- notification bar */
+/* Sits between the header and the hero, and only exists when a tool has
+   something to say - so it never becomes permanent furniture.
+   Always dark slate: the hero directly below it is maroon, so colouring an
+   overdue bar maroon (the obvious first instinct) makes it vanish into the
+   panel it's sitting on. Severity is carried by the maroon pill instead,
+   which stays legible against slate and needs no colour outside the four
+   the brand actually has. */
+.notifbar {
+  background: var(--slate);
+  color: #EDF1F3;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  animation: notifIn 460ms var(--ease-out) both;
+  overflow: hidden;
+}
+.notifbar--muted { background: var(--surface-2); color: var(--ink-soft); border-bottom-color: var(--line); }
+
+.notifbar__sev {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--maroon);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+@keyframes notifIn {
+  from { opacity: 0; transform: translate3d(0, -100%, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.notifbar__inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 11px 32px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.notifbar__icon { display: inline-flex; flex: none; opacity: .9; }
+/* One slow pulse on arrival, then still - a bar that keeps moving is a bar
+   people learn to ignore. */
+.notifbar__icon svg { animation: pop 900ms var(--ease-out) 260ms; }
+
+.notifbar__lead {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+}
+.notifbar__lead strong { font-family: 'Inter', sans-serif; font-weight: 700; letter-spacing: -.01em; }
+.notifbar__body { opacity: .82; }
+
+.notifbar__meta {
+  margin-left: auto;
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .7;
+  white-space: nowrap;
+}
+
+.notifbar__more {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: inherit;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color var(--t-micro) var(--ease);
+}
+.notifbar__more:hover { background: rgba(255, 255, 255, .2); }
+.notifbar__chev { transition: transform var(--t-hover) var(--ease); }
+.notifbar__chev--up { transform: rotate(180deg); }
+
+.notifbar__dismiss {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: .6;
+  transition: opacity var(--t-micro) var(--ease), background-color var(--t-micro) var(--ease);
+}
+.notifbar__dismiss:hover { opacity: 1; background: rgba(255, 255, 255, .14); }
+.notifbar--muted .notifbar__dismiss:hover { background: var(--surface-3); }
+
+/* Expanded list */
+.notiflist {
+  list-style: none;
+  margin: 0;
+  padding: 4px 32px 14px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+}
+.notiflist__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.notiflist__row:last-child { border-bottom: 0; }
+.notiflist__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .55);
+}
+.notiflist__dot--overdue { background: #F0A9A2; }
+.notiflist__text { min-width: 0; flex: 1; }
+.notiflist__title { margin: 0; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; }
+.notiflist__body { margin: 3px 0 0; font-size: 12.5px; opacity: .8; }
+.notiflist__items { font-variant-numeric: tabular-nums; opacity: .85; }
+.notiflist__tool {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: .6;
+  padding-top: 3px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .notifbar__inner { padding: 10px 18px; gap: 10px; flex-wrap: wrap; }
+  .notifbar__meta { display: none; }
+  .notifbar__lead { font-size: 13px; }
+  .notiflist { padding: 4px 18px 12px; }
+  .notiflist__tool { display: none; }
+}
+
 /* --------------------------------------------------------------------- hero */
 /* A solid maroon panel - allowed as a layout block by the brand guidelines -
    carrying oversized editorial type. This is the "bold" gesture of the page. */
@@ -876,7 +1035,7 @@ a { color: inherit; }
     animation-delay: 0ms !important;
     transition-duration: .001ms !important;
   }
-  .enter, .enter--sm, .loginscreen__card, .empty { opacity: 1 !important; transform: none !important; }
+  .enter, .enter--sm, .loginscreen__card, .empty, .notifbar { opacity: 1 !important; transform: none !important; }
   .card:hover { transform: none; }
   .card__ext { opacity: .75; transform: none; }
 }

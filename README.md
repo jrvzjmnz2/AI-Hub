@@ -233,6 +233,55 @@ and session-cookie pattern the Equipment Inventory app now has (see its own READ
 its base URL to `server/toolRegistry.js` and the matching env var, and add `sso: '<id>'` to
 its entry in `tools.js`.
 
+## Notifications
+
+The Hub shows a notification bar under the header when a tool has something to say. It
+holds no notification data of its own: on request it asks every registered
+notification-capable tool what it has for the signed-in employee, merges the answers
+(most urgent first), and renders the top one with the rest behind a "N more" expander.
+Each one can be dismissed, which is relayed back to the tool that raised it.
+
+The browser never calls a tool's API directly. Each tool is a separate site (every Render
+subdomain is its own registrable domain), so a cross-site fetch would be refused its
+cookies no matter how CORS were configured - the same constraint that shaped the logout
+chain. The Hub therefore calls tools **server-to-server** with a short-lived bearer token,
+which also means one tool being down or asleep degrades to "no notifications from that
+tool" rather than a broken bar.
+
+The bar polls once a minute, and again whenever the tab becomes visible; the Hub caches
+each employee's merged result for 20s so several open tabs don't fan out on every poll.
+A dismissal clears that cache immediately.
+
+### Adding a tool to the bar
+
+There is no per-tool code in the aggregator. Set `notifications: true` on the tool in
+`server/toolRegistry.js` and implement two endpoints on that tool:
+
+```
+GET  /api/notifications              -> { notifications: [ ... ] }
+POST /api/notifications/dismiss      <- { id }
+```
+
+Authenticate both with the `Authorization: Bearer <token>` the Hub sends. The token is
+signed with the shared `SSO_SHARED_SECRET` and its audience is **`<toolId>-api`** - not
+`<toolId>`, which is the login hand-off audience. Verify the audience strictly: a login
+token rides in a browser URL and must not be accepted as an API credential (and vice
+versa). See `utils/serviceToken.js` and `middleware/serviceAuth.js` in the inventory app
+for a working implementation, and its README for the reasoning.
+
+Each notification should carry at least:
+
+| Field | Notes |
+|---|---|
+| `id` | Stable for the same real-world situation, so a dismissal sticks. |
+| `severity` | `overdue` sorts above `due_soon`. |
+| `title` / `body` | Written by the tool - it knows its own domain, and this keeps wording consistent wherever it's shown. |
+| `dueAt` | ISO instant; used as the tie-breaker in sorting. |
+| `count` / `items[]` | Optional detail shown in the expanded list. |
+
+The Hub adds `toolId` and `toolName` to everything it passes on, and reports per-source
+failures in `sources` so the bar can say "couldn't reach X" instead of implying all-clear.
+
 ## Running it locally
 
 Requires Node 18 or newer. Two processes run side by side in dev - the Vite dev server

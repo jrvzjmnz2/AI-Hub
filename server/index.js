@@ -6,8 +6,8 @@ import cookieParser from 'cookie-parser'
 import bcrypt from 'bcryptjs'
 import { connectToDatabase, getDb, DB_NAME } from './db.js'
 import { setSessionCookie, clearSessionCookie, readSession, requireSession } from './auth.js'
-import { mintSsoToken } from './ssoToken.js'
-import { getToolBaseUrl, getAllToolBaseUrls } from './toolRegistry.js'
+import { mintSsoToken, mintServiceToken } from './ssoToken.js'
+import { getToolBaseUrl, getAllToolBaseUrls, getNotificationTools, isNotificationTool } from './toolRegistry.js'
 import { getMsalClient, isMicrosoftConfigured, MSAL_SCOPES } from './msalClient.js'
 import { signOAuthState, verifyOAuthState } from './oauthState.js'
 
@@ -408,6 +408,149 @@ app.get('/api/sso/:toolId', requireSession, async (req, res) => {
     res.json({ redirectUrl: `${baseUrl}/sso?token=${encodeURIComponent(token)}` })
   } catch (err) {
     res.status(500).json({ message: 'Server error while starting sign-on.', error: err.message })
+  }
+})
+
+// ---------------------------------------------------------------------
+// Notifications - the Hub as an aggregator.
+//
+// The Hub holds no notification data of its own. It asks each registered
+// tool what it has to say for the signed-in employee, server-to-server, and
+// merges the answers. The browser never talks to a tool's API directly:
+// those are separate sites (each Render subdomain is its own registrable
+// domain), so a cross-site fetch would be refused its cookies no matter how
+// CORS were configured - the same constraint that shaped the logout chain.
+// Going server-to-server with a short-lived bearer token sidesteps that
+// entirely, and means one tool being down or asleep degrades to "no
+// notifications from that tool" instead of a broken bar.
+// ---------------------------------------------------------------------
+
+const NOTIFICATION_TIMEOUT_MS = 6000
+const NOTIFICATION_CACHE_MS = 20000
+
+// employee key -> { at, body }. Bounded by the number of signed-in
+// employees, and each entry is a handful of small objects; the point is to
+// stop a browser polling every 60s from fanning out to every tool on every
+// tab, not to be a real cache.
+const notificationCache = new Map()
+
+function cacheKeyFor(employee) {
+  return employee.employeeId || employee.email || 'anonymous'
+}
+
+// One tool's answer. Never throws - a failure is data ("this source is
+// unavailable"), reported alongside whatever the other tools returned.
+async function fetchToolNotifications(tool, employee) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), NOTIFICATION_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${tool.baseUrl}/api/notifications`, {
+      headers: { Authorization: `Bearer ${mintServiceToken(employee, tool.id)}` },
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      return { id: tool.id, name: tool.name, ok: false, reason: `HTTP ${res.status}` }
+    }
+    const data = await res.json()
+    const list = Array.isArray(data.notifications) ? data.notifications : []
+    return {
+      id: tool.id,
+      name: tool.name,
+      ok: true,
+      // Tag each one with where it came from, so the bar can say so and a
+      // dismissal knows which tool to send itself back to.
+      notifications: list.map((n) => ({ ...n, toolId: tool.id, toolName: tool.name })),
+    }
+  } catch (err) {
+    // A tool that's asleep on Render's free tier takes ~30s to wake, which
+    // this will (correctly) give up on long before.
+    return {
+      id: tool.id,
+      name: tool.name,
+      ok: false,
+      reason: err.name === 'AbortError' ? 'timed out' : err.message,
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function sortNotifications(list) {
+  return list.sort((a, b) => {
+    const aOverdue = a.severity === 'overdue'
+    const bOverdue = b.severity === 'overdue'
+    if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
+    return new Date(a.dueAt || 0) - new Date(b.dueAt || 0)
+  })
+}
+
+app.get('/api/notifications', requireSession, async (req, res) => {
+  try {
+    const employee = await loadEmployee(req, res)
+    if (!employee) return res.status(401).json({ message: 'Not logged in.' })
+
+    const key = cacheKeyFor(employee)
+    const cached = notificationCache.get(key)
+    if (cached && Date.now() - cached.at < NOTIFICATION_CACHE_MS) {
+      return res.json({ ...cached.body, cached: true })
+    }
+
+    const tools = getNotificationTools()
+    const results = await Promise.all(tools.map((tool) => fetchToolNotifications(tool, employee)))
+
+    const body = {
+      notifications: sortNotifications(results.filter((r) => r.ok).flatMap((r) => r.notifications)),
+      sources: results.map(({ id, name, ok, reason }) => ({ id, name, ok, ...(reason ? { reason } : {}) })),
+      fetchedAt: new Date().toISOString(),
+    }
+
+    notificationCache.set(key, { at: Date.now(), body })
+    res.json(body)
+  } catch (err) {
+    res.status(500).json({ message: 'Server error while collecting notifications.', error: err.message })
+  }
+})
+
+// Dismissals belong to the tool that raised the notification - the Hub just
+// relays them, and drops its cache so the bar reflects it immediately.
+app.post('/api/notifications/dismiss', requireSession, async (req, res) => {
+  const { toolId, id } = req.body || {}
+  if (typeof toolId !== 'string' || typeof id !== 'string' || !toolId || !id) {
+    return res.status(400).json({ message: 'toolId and id are required.' })
+  }
+  if (!isNotificationTool(toolId)) {
+    return res.status(404).json({ message: `No notification-capable tool registered as "${toolId}".` })
+  }
+
+  try {
+    const employee = await loadEmployee(req, res)
+    if (!employee) return res.status(401).json({ message: 'Not logged in.' })
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), NOTIFICATION_TIMEOUT_MS)
+    try {
+      const upstream = await fetch(`${getToolBaseUrl(toolId)}/api/notifications/dismiss`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${mintServiceToken(employee, toolId)}`,
+        },
+        body: JSON.stringify({ id }),
+        signal: controller.signal,
+      })
+      notificationCache.delete(cacheKeyFor(employee))
+      if (!upstream.ok) {
+        return res.status(502).json({ message: `${toolId} refused the dismissal (HTTP ${upstream.status}).` })
+      }
+      res.json({ ok: true })
+    } finally {
+      clearTimeout(timer)
+    }
+  } catch (err) {
+    res.status(502).json({
+      message: 'Could not reach that tool to dismiss the notification.',
+      error: err.name === 'AbortError' ? 'timed out' : err.message,
+    })
   }
 })
 

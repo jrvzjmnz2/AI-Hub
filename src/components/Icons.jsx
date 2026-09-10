@@ -43,3 +43,14 @@ export const MicrosoftIcon = (p) => (
     <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
   </svg>
 )
+
+export const BellIcon = (p) => (
+  <svg {...base} {...p} aria-hidden="true">
+    <path d="M18 8a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
+    <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
+  </svg>
+)
+
+export const ChevronIcon = (p) => (
+  <svg {...base} {...p} aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+)

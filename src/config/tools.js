@@ -34,6 +34,8 @@ export const SITE = {
 /* Team order below is the order they appear in the filter bar and the page. */
 export const TEAMS = [
   { id: 'finance',       name: 'Finance',         blurb: 'Budgeting, payments and financial reporting tools.' },
+  { id: 'registration',  name: 'Registration',    blurb: 'Event registration and management tools.' },
+  { id: 'growth',        name: 'Growth',          blurb: 'Growth hacking and marketing tools.' },
   { id: 'accounting',    name: 'Accounting',      blurb: 'Books, reconciliation and audit support tools.' },
   { id: 'bib-production',name: 'Bib Production',  blurb: 'Bib layout, personalization and print-prep tools.' },
   { id: 'admin',         name: 'Admin',           blurb: 'Office, procurement and general administration tools.' },
@@ -68,6 +70,51 @@ export const TOOLS = [
     team: 'finance',
     description: 'Sample entry - submit and track supplier payment requests.',
     owner: 'Finance Team',
+    status: 'live',
+    placeholder: true,
+  },
+
+  // ---------------------------------------------------------------- Registration
+  {
+    id: 'registration-validation',
+    name: 'Validation Portal',
+    url: 'https://example.com/replace-me',
+    team: 'registration',
+    description: 'Sample entry - validate registration information.',
+    owner: 'Registration Team',
+    status: 'live',
+    tags: ['validation', 'registration'],
+    placeholder: true,
+  },
+  {
+    id: 'registration-check-in',
+    name: 'Check-In Portal',
+    url: 'https://example.com/replace-me',
+    team: 'registration',
+    description: 'Sample entry - manage event check-in processes.',
+    owner: 'Registration Team',
+    status: 'live',
+    placeholder: true,
+  },
+
+    // ---------------------------------------------------------------- Growth
+  {
+    id: 'design-asset-generator',
+    name: 'Design Asset Generator',
+    url: 'https://example.com/replace-me',
+    team: 'growth',
+    description: 'Sample entry - generate design assets for marketing materials.',
+    owner: 'Growth Team',
+    status: 'live',
+    placeholder: true,
+  },
+  {
+    id: 'marketing-campaign-tracker',
+    name: 'Marketing Campaign Tracker',
+    url: 'https://example.com/replace-me',
+    team: 'growth',
+    description: 'Sample entry - track marketing campaign performance.',
+    owner: 'Growth Team',
     status: 'live',
     placeholder: true,
   },
@@ -168,15 +215,14 @@ export const TOOLS = [
 
   // ----------------------------------------------------------- Kit Claiming
   {
-    id: 'kit-claiming-lookup',
-    name: 'Claiming Lookup',
-    url: 'https://example.com/replace-me',
+    id: 'kit-claiming-hub',
+    name: 'Kit Claiming Hub',
+    url: 'https://itemhound.sharepoint.com/sites/KitClaiming/Shared%20Documents/Kit%20Claiming%20Automation/Kit%20Claiming%20Tool.html',
     team: 'kit-claiming',
-    description: 'Sample entry - search a runner and confirm kit release.',
+    description: 'Kit Claiming Tool Hub.',
     owner: 'Kit Claiming Team',
-    status: 'live',
-    tags: ['runner', 'release'],
-    placeholder: true,
+    status: 'beta',
+    placeholder: false,
   },
   {
     id: 'kit-claiming-queue',
